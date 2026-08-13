@@ -11,6 +11,7 @@ import {
   dbDateToWallClock,
   wallClockToDbDate,
 } from "../utils/local-datetime.js";
+import { hashPassword } from "../utils/password.js";
 
 const ROLES = new Set<string>(Object.values(RolUsuario));
 
@@ -45,7 +46,7 @@ export class UsuarioService {
     const usuario = this.repo.create({
       nombre: dto.nombre.trim(),
       username: dto.username.trim(),
-      password: dto.password,
+      password: await hashPassword(dto.password),
       rol: dto.rol,
       createdAt: now,
       updatedAt: now,
@@ -84,7 +85,7 @@ export class UsuarioService {
       if (typeof dto.password !== "string") {
         throw Object.assign(new Error("password inválido"), { status: 400 });
       }
-      usuario.password = dto.password;
+      usuario.password = await hashPassword(dto.password);
     }
 
     if (dto.rol !== undefined) {

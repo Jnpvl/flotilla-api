@@ -7,6 +7,7 @@ import type {
   LoginDto,
   LoginResponse,
 } from "../interfaces/auth.interface.js";
+import { verifyPassword } from "../utils/password.js";
 
 export class AuthService {
   private readonly usuarioRepo = AppDataSource.getRepository(Usuario);
@@ -23,7 +24,7 @@ export class AuthService {
       where: { username },
     });
 
-    if (!usuario || usuario.password !== password) {
+    if (!usuario || !(await verifyPassword(password, usuario.password))) {
       return null;
     }
 

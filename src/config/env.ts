@@ -66,4 +66,9 @@ export const env = {
     password: required("DB_PASSWORD"),
     synchronize: bool("DB_SYNC", false),
   },
+  seedAdmin: {
+    nombre: process.env.ADMIN_NOMBRE ?? "Administrador",
+    username: process.env.ADMIN_USERNAME ?? "admin",
+    password: process.env.ADMIN_PASSWORD ?? "Se20sepaad80$",
+  },
 };
