@@ -1,0 +1,6 @@
+node_modules/
+dist/
+.env
+.nodemon-restart
+*.log
+.DS_Store

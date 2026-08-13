@@ -1,0 +1,27 @@
+{
+  "name": "flotla-api",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "nodemon",
+    "build": "tsc",
+    "start": "node --env-file=.env dist/index.js"
+  },
+  "dependencies": {
+    "express": "^5.1.0",
+    "jsonwebtoken": "^9.0.3",
+    "mssql": "^12.7.0",
+    "reflect-metadata": "^0.2.2",
+    "typeorm": "^1.1.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.3",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/mssql": "^12.3.0",
+    "@types/node": "^24.2.1",
+    "nodemon": "^3.1.14",
+    "tsx": "^4.20.3",
+    "typescript": "^5.9.2"
+  }
+}

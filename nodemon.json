@@ -1,0 +1,11 @@
+{
+  "watch": ["src", ".nodemon-restart"],
+  "ext": "ts,json",
+  "ignore": ["src/**/*.spec.ts", "dist"],
+  "delay": 400,
+  "signal": "SIGTERM",
+  "exec": "node --env-file=.env --import tsx src/index.ts",
+  "events": {
+    "crash": "node scripts/nodemon-on-crash.mjs"
+  }
+}
