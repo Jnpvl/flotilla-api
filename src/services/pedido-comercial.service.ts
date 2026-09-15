@@ -201,7 +201,14 @@ export class PedidoComercialService {
     }
 
     if (dto.detalle !== undefined) {
-      if (actorRol === RolUsuario.FACTURISTA && wasPrefactura) {
+      const surtidoOnly =
+        wasPrefactura &&
+        (actorRol === RolUsuario.FACTURISTA ||
+          (actorRol === RolUsuario.ADMIN &&
+            dto.clienteNombre === undefined &&
+            dto.fechaPedido === undefined));
+
+      if (surtidoOnly) {
         // El pedido del vendedor manda: solo se aplica surtido
         pedido.detalle = applySurtidoOntoDetalle(prevDetalle, dto.detalle);
       } else {
@@ -264,11 +271,14 @@ export class PedidoComercialService {
       pedido.modificadoEnPrefacturaAt = now;
     }
 
-    // Facturista: si hay modificación del vendedor, exige acuse explícito
+    // Facturista/admin: si hay modificación del vendedor, exige acuse explícito al guardar surtido
     if (
       wasPrefactura &&
       dto.detalle !== undefined &&
-      actorRol === RolUsuario.FACTURISTA
+      (actorRol === RolUsuario.FACTURISTA ||
+        (actorRol === RolUsuario.ADMIN &&
+          dto.clienteNombre === undefined &&
+          dto.fechaPedido === undefined))
     ) {
       if (Boolean(pedido.requiereRevision) && dto.ackRevision !== true) {
         throw Object.assign(
