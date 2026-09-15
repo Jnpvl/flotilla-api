@@ -30,27 +30,34 @@ export async function requireAuth(
     return;
   }
 
+  let decoded: jwt.JwtPayload;
   try {
-    const decoded = jwt.verify(token, env.jwtSecret);
-    if (typeof decoded === "string") {
+    const verified = jwt.verify(token, env.jwtSecret);
+    if (typeof verified === "string") {
       res.status(401).json({ message: "Token inválido" });
       return;
     }
+    decoded = verified;
+  } catch {
+    res.status(401).json({ message: "Token inválido o expirado" });
+    return;
+  }
 
-    const sub =
-      typeof decoded.sub === "number" ? decoded.sub : Number(decoded.sub);
+  const sub =
+    typeof decoded.sub === "number" ? decoded.sub : Number(decoded.sub);
 
-    if (!Number.isInteger(sub) || sub <= 0) {
-      res.status(401).json({ message: "Token inválido" });
-      return;
-    }
+  if (!Number.isInteger(sub) || sub <= 0) {
+    res.status(401).json({ message: "Token inválido" });
+    return;
+  }
 
-    const tokenUsername = String(decoded.username ?? "").trim();
-    if (!tokenUsername) {
-      res.status(401).json({ message: "Token inválido" });
-      return;
-    }
+  const tokenUsername = String(decoded.username ?? "").trim();
+  if (!tokenUsername) {
+    res.status(401).json({ message: "Token inválido" });
+    return;
+  }
 
+  try {
     const usuario = await AppDataSource.getRepository(Usuario).findOne({
       where: { id: sub },
     });
@@ -67,7 +74,8 @@ export async function requireAuth(
       rol: usuario.rol,
     };
     next();
-  } catch {
-    res.status(401).json({ message: "Token inválido o expirado" });
+  } catch (error) {
+    console.error("Error validando sesión:", error);
+    res.status(500).json({ message: "Error interno del servidor" });
   }
 }
