@@ -27,6 +27,8 @@ export function buildPedidoDetalle(
   return lines.join("\n");
 }
 
+export const DETALLE_MAX_LEN = 2000;
+
 export function parsePedidoDetalle(detalle: string | null): {
   lineas: LineaPedidoComercial[];
   notas: string;
@@ -61,7 +63,22 @@ export function parsePedidoDetalle(detalle: string | null): {
   return { lineas, notas };
 }
 
-/** Conserva productos del base; solo aplica surtido del incoming. */
+/** Identidad de productos/cantidades/precio (ignora surtido). */
+export function productFingerprint(lineas: LineaPedidoComercial[]): string {
+  return lineas
+    .map((l) => `${l.codigo}:${l.cantidad}:${l.precioSinIva ?? ""}`)
+    .sort()
+    .join("|");
+}
+
+export function detalleProductFingerprint(detalle: string | null): string {
+  return productFingerprint(parsePedidoDetalle(detalle).lineas);
+}
+
+/**
+ * Conserva productos del base; solo aplica surtido del incoming.
+ * Nunca trunca de forma que se pierdan líneas: si no cabe, lanza error.
+ */
 export function applySurtidoOntoDetalle(
   baseDetalle: string | null,
   incomingDetalle: string | null,
@@ -69,7 +86,7 @@ export function applySurtidoOntoDetalle(
   const base = parsePedidoDetalle(baseDetalle);
   if (base.lineas.length === 0) {
     return typeof incomingDetalle === "string" && incomingDetalle.trim()
-      ? incomingDetalle.trim().slice(0, 2000)
+      ? incomingDetalle.trim().slice(0, DETALLE_MAX_LEN)
       : null;
   }
   const incoming = parsePedidoDetalle(incomingDetalle);
@@ -83,7 +100,20 @@ export function applySurtidoOntoDetalle(
       : l.cantidadSurtida,
   }));
   const notas = incoming.notas || base.notas;
-  return buildPedidoDetalle(merged, notas).slice(0, 2000);
+  const result = buildPedidoDetalle(merged, notas);
+  if (result.length > DETALLE_MAX_LEN) {
+    const truncated = result.slice(0, DETALLE_MAX_LEN);
+    if (parsePedidoDetalle(truncated).lineas.length !== merged.length) {
+      throw Object.assign(
+        new Error(
+          "El detalle del pedido es demasiado largo al guardar surtido. Reduce notas o nombres antes de continuar.",
+        ),
+        { status: 400, code: "DETALLE_TOO_LONG" },
+      );
+    }
+    return truncated;
+  }
+  return result;
 }
 
 /** Quita `| surtido:N` de cada línea. */

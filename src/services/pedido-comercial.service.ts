@@ -12,6 +12,7 @@ import type {
 } from "../interfaces/pedido-comercial.interface.js";
 import {
   applySurtidoOntoDetalle,
+  detalleProductFingerprint,
   stripSurtidoFromDetalle,
 } from "../utils/pedido-comercial-detalle.js";
 import { getClientLocalWallClock } from "../utils/client-time-context.js";
@@ -209,6 +210,23 @@ export class PedidoComercialService {
             dto.fechaPedido === undefined));
 
       if (surtidoOnly) {
+        const baseFp = detalleProductFingerprint(prevDetalle);
+        const incomingFp = detalleProductFingerprint(dto.detalle);
+        // Si el listado del request no coincide con el del vendedor, no
+        // aplicar surtido a ciegas (eso descartaba productos nuevos en UI).
+        if (baseFp !== incomingFp) {
+          const stamp = wallClockToDbDate(getClientLocalWallClock());
+          pedido.requiereRevision = true;
+          pedido.modificadoEnPrefacturaAt = stamp;
+          pedido.updatedAt = stamp;
+          await this.repo.save(pedido);
+          throw Object.assign(
+            new Error(
+              "El listado de productos cambió. Revisa el pedido, guarda surtido y vuelve a intentar.",
+            ),
+            { status: 409, code: "REQUIERE_REVISION" },
+          );
+        }
         // El pedido del vendedor manda: solo se aplica surtido
         pedido.detalle = applySurtidoOntoDetalle(prevDetalle, dto.detalle);
       } else {
