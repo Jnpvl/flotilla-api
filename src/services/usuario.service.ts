@@ -48,6 +48,7 @@ export class UsuarioService {
       username: dto.username.trim(),
       password: await hashPassword(dto.password),
       rol: dto.rol,
+      agenteContpaqId: this.resolveAgenteId(dto.rol, dto.agenteContpaqId),
       createdAt: now,
       updatedAt: now,
     });
@@ -95,6 +96,15 @@ export class UsuarioService {
       usuario.rol = dto.rol;
     }
 
+    if (dto.agenteContpaqId !== undefined || dto.rol !== undefined) {
+      const rol = dto.rol ?? usuario.rol;
+      const agente =
+        dto.agenteContpaqId !== undefined
+          ? dto.agenteContpaqId
+          : usuario.agenteContpaqId;
+      usuario.agenteContpaqId = this.resolveAgenteId(rol, agente);
+    }
+
     usuario.updatedAt = wallClockToDbDate(getClientLocalWallClock());
     const saved = await this.repo.save(usuario);
     return this.toPublic(saved);
@@ -103,6 +113,23 @@ export class UsuarioService {
   async remove(id: number): Promise<boolean> {
     const result = await this.repo.delete(id);
     return (result.affected ?? 0) > 0;
+  }
+
+  private resolveAgenteId(
+    rol: RolUsuario,
+    agenteContpaqId: number | null | undefined,
+  ): number | null {
+    if (rol !== RolUsuario.VENDEDOR) {
+      return null;
+    }
+    const id = Number(agenteContpaqId);
+    if (!Number.isInteger(id) || id <= 0) {
+      throw Object.assign(
+        new Error("El vendedor debe vincularse a un agente Contpaq"),
+        { status: 400 },
+      );
+    }
+    return id;
   }
 
   private assertCreate(dto: CreateUsuarioDto): void {
@@ -118,6 +145,7 @@ export class UsuarioService {
     if (!ROLES.has(dto.rol)) {
       throw Object.assign(new Error("rol inválido"), { status: 400 });
     }
+    this.resolveAgenteId(dto.rol, dto.agenteContpaqId);
   }
 
   private toPublic(usuario: Usuario): UsuarioPublic {
@@ -126,6 +154,7 @@ export class UsuarioService {
       nombre: usuario.nombre,
       username: usuario.username,
       rol: usuario.rol,
+      agenteContpaqId: usuario.agenteContpaqId ?? null,
       createdAt: dbDateToWallClock(usuario.createdAt),
       updatedAt: dbDateToWallClock(usuario.updatedAt),
     };

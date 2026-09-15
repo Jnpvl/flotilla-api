@@ -6,7 +6,6 @@ import {
   ManyToOne,
   PrimaryGeneratedColumn,
 } from "typeorm";
-import { GpsEvento } from "../constants/gps-evento.enum.js";
 import type { Ruta } from "./ruta.entity.js";
 
 @Entity({ name: "gps_senales" })
@@ -34,8 +33,8 @@ export class GpsSenal {
   @Column({ type: "float", nullable: true })
   speed!: number | null;
 
-  /** tracking | inicio_ruta | pedido_entregado | regreso_almacen */
-  @Column({ type: "nvarchar", length: 40, default: GpsEvento.TRACKING })
+  /** inicio_ruta | pedido_entregado | regreso_almacen */
+  @Column({ type: "nvarchar", length: 40 })
   tipo!: string;
 
   @Column({ name: "pedido_id", type: "int", nullable: true })

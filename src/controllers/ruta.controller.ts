@@ -91,25 +91,6 @@ export class RutaController {
     }
   };
 
-  addGpsBatch = async (req: AuthedRequest, res: Response): Promise<void> => {
-    const id = Number(req.params.id);
-    if (!Number.isInteger(id) || id <= 0) {
-      res.status(400).json({ message: "id inválido" });
-      return;
-    }
-
-    try {
-      const result = await this.service.addGpsBatch(
-        id,
-        req.body ?? {},
-        req.auth?.sub,
-      );
-      res.status(201).json(result);
-    } catch (error) {
-      this.handleError(res, error, "Error guardando GPS batch");
-    }
-  };
-
   iniciar = async (req: AuthedRequest, res: Response): Promise<void> => {
     try {
       const body = req.body ?? {};

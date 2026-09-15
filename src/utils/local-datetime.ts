@@ -31,8 +31,12 @@ export function normalizeLocalWallClock(value: string): string | null {
 }
 
 /**
- * Convierte reloj de pared a Date para SQL Server/tedious:
- * los componentes UTC del Date = la hora local que queremos guardar.
+ * Convierte reloj de pared a Date para SQL Server/tedious.
+ *
+ * Importante: tedious escribe datetime2 con getHours()/getMinutes() (hora
+ * local del proceso Node). Por eso usamos el constructor local, no Date.UTC:
+ * si metiéramos la hora del device en UTC, en zonas como Hermosillo (UTC-7)
+ * SQL guardaría 7 horas menos (12:37 → 05:37).
  */
 export function wallClockToDbDate(value: string): Date {
   const normalized = normalizeLocalWallClock(value);
@@ -53,12 +57,12 @@ export function wallClockToDbDate(value: string): Date {
   const second = Number(match[6] ?? "0");
   const ms = Number((match[7] ?? "0").padEnd(3, "0"));
 
-  return new Date(Date.UTC(year, month - 1, day, hour, minute, second, ms));
+  return new Date(year, month - 1, day, hour, minute, second, ms);
 }
 
 /**
- * Lee un Date de SQL (wall clock en componentes UTC) o string, y lo
- * devuelve como reloj de pared sin zona.
+ * Lee un Date de SQL (wall clock en componentes locales del proceso) o string,
+ * y lo devuelve como reloj de pared sin zona.
  */
 export function dbDateToWallClock(value: Date | string | null | undefined): string {
   if (value == null) {
@@ -72,13 +76,13 @@ export function dbDateToWallClock(value: Date | string | null | undefined): stri
   }
 
   return formatParts(
-    value.getUTCFullYear(),
-    value.getUTCMonth() + 1,
-    value.getUTCDate(),
-    value.getUTCHours(),
-    value.getUTCMinutes(),
-    value.getUTCSeconds(),
-    value.getUTCMilliseconds(),
+    value.getFullYear(),
+    value.getMonth() + 1,
+    value.getDate(),
+    value.getHours(),
+    value.getMinutes(),
+    value.getSeconds(),
+    value.getMilliseconds(),
   );
 }
 

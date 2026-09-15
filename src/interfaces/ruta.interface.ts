@@ -17,13 +17,9 @@ export interface CreateGpsSenalDto {
   accuracy?: number | null;
   speed?: number | null;
   recordedAt?: string;
-  tipo?: string;
+  tipo: string;
   pedidoId?: number | null;
   label?: string | null;
-}
-
-export interface CreateGpsSenalesBatchDto {
-  points: CreateGpsSenalDto[];
 }
 
 export interface RutaPedidoPublic {

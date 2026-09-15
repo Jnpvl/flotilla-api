@@ -1,6 +1,6 @@
 import { In } from "typeorm";
 import { AppDataSource } from "../config/database.js";
-import { GpsEvento } from "../constants/gps-evento.enum.js";
+import { GpsEvento, isGpsEvento } from "../constants/gps-evento.enum.js";
 import { PedidoEstatus } from "../constants/pedido-estatus.enum.js";
 import { RolUsuario } from "../constants/rol.enum.js";
 import { RutaEstatus } from "../constants/ruta-estatus.enum.js";
@@ -12,7 +12,6 @@ import { RutaPedido } from "../entities/ruta-pedido.entity.js";
 import { Usuario } from "../entities/usuario.entity.js";
 import type {
   CreateGpsSenalDto,
-  CreateGpsSenalesBatchDto,
   DashboardStats,
   FinalizarRutaDto,
   IniciarRutaDto,
@@ -362,11 +361,15 @@ export class RutaService {
       throw Object.assign(new Error("lat/lng inválidos"), { status: 400 });
     }
 
-    const TIPOS = new Set<string>(Object.values(GpsEvento));
-    let tipo =
-      typeof dto.tipo === "string" && TIPOS.has(dto.tipo)
-        ? dto.tipo
-        : GpsEvento.TRACKING;
+    if (!isGpsEvento(dto.tipo)) {
+      throw Object.assign(
+        new Error(
+          "tipo inválido: usa inicio_ruta, pedido_entregado o regreso_almacen",
+        ),
+        { status: 400 },
+      );
+    }
+    const tipo = dto.tipo;
 
     let label =
       typeof dto.label === "string" && dto.label.trim()
@@ -375,12 +378,21 @@ export class RutaService {
 
     // Solo un evento de inicio por ruta
     if (tipo === GpsEvento.INICIO_RUTA) {
-      const already = await this.gpsRepo.exists({
+      const already = await this.gpsRepo.findOne({
         where: { rutaId, tipo: GpsEvento.INICIO_RUTA },
+        order: { id: "ASC" },
       });
       if (already) {
-        tipo = GpsEvento.TRACKING;
-        if (label === "Inicio de ruta") label = null;
+        return {
+          id: already.id,
+          lat: Number(already.lat),
+          lng: Number(already.lng),
+          recordedAt: dbDateToWallClock(already.recordedAt),
+          speed: already.speed,
+          tipo: already.tipo,
+          pedidoId: already.pedidoId,
+          label: already.label,
+        };
       }
     }
 
@@ -414,7 +426,6 @@ export class RutaService {
       `[gps] ruta=${rutaId} tipo=${saved.tipo} lat=${saved.lat} lng=${saved.lng} at=${dbDateToWallClock(saved.recordedAt)}`,
     );
 
-    // Actualiza km en vivo sumando el trayecto GPS
     const km = await this.computeKmRecorridos(rutaId);
     await this.rutaRepo.update(rutaId, {
       kmRecorridos: String(km),
@@ -433,36 +444,15 @@ export class RutaService {
     };
   }
 
-  async addGpsBatch(
-    rutaId: number,
-    dto: CreateGpsSenalesBatchDto,
-    choferId?: number,
-  ): Promise<{ saved: number }> {
-    if (!Array.isArray(dto.points) || dto.points.length === 0) {
-      throw Object.assign(new Error("points es requerido"), { status: 400 });
-    }
-    if (dto.points.length > 200) {
-      throw Object.assign(new Error("Máximo 200 puntos por lote"), {
-        status: 400,
-      });
-    }
-
-    let saved = 0;
-    for (const point of dto.points) {
-      await this.addGpsPoint(rutaId, point, choferId);
-      saved += 1;
-    }
-    return { saved };
-  }
-
   private async computeKmRecorridos(rutaId: number): Promise<number> {
     const points = await this.gpsRepo.find({
       where: { rutaId },
       order: { recordedAt: "ASC", id: "ASC" },
     });
+    const eventos = points.filter((p) => isGpsEvento(p.tipo));
     return round2(
       pathLengthKm(
-        points.map((p) => ({ lat: Number(p.lat), lng: Number(p.lng) })),
+        eventos.map((p) => ({ lat: Number(p.lat), lng: Number(p.lng) })),
       ),
     );
   }
@@ -525,6 +515,7 @@ export class RutaService {
     if (!includeGps) return base;
 
     const gps = [...(ruta.gpsSenales ?? [])]
+      .filter((g) => isGpsEvento(g.tipo))
       .sort((a, b) => {
         const aw = a.recordedAt ? dbDateToWallClock(a.recordedAt) : "";
         const bw = b.recordedAt ? dbDateToWallClock(b.recordedAt) : "";
@@ -536,7 +527,7 @@ export class RutaService {
         lng: Number(g.lng),
         recordedAt: dbDateToWallClock(g.recordedAt),
         speed: g.speed,
-        tipo: g.tipo || GpsEvento.TRACKING,
+        tipo: g.tipo,
         pedidoId: g.pedidoId ?? null,
         label: g.label ?? null,
       }));

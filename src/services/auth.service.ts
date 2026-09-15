@@ -42,12 +42,23 @@ export class AuthService {
 
     return {
       accessToken,
-      user: {
-        id: usuario.id,
-        nombre: usuario.nombre,
-        username: usuario.username,
-        rol: usuario.rol,
-      },
+      user: this.toPublicUser(usuario),
+    };
+  }
+
+  async me(userId: number): Promise<LoginResponse["user"] | null> {
+    const usuario = await this.usuarioRepo.findOne({ where: { id: userId } });
+    if (!usuario) return null;
+    return this.toPublicUser(usuario);
+  }
+
+  private toPublicUser(usuario: Usuario): LoginResponse["user"] {
+    return {
+      id: usuario.id,
+      nombre: usuario.nombre,
+      username: usuario.username,
+      rol: usuario.rol,
+      agenteContpaqId: usuario.agenteContpaqId ?? null,
     };
   }
 }

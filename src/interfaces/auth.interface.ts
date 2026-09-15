@@ -18,5 +18,6 @@ export interface LoginResponse {
     nombre: string;
     username: string;
     rol: RolUsuario;
+    agenteContpaqId: number | null;
   };
 }

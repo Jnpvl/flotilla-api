@@ -14,6 +14,5 @@ rutaRouter.get("/:id", controller.getById);
 rutaRouter.post("/iniciar", controller.iniciar);
 rutaRouter.post("/:id/finalizar", controller.finalizar);
 rutaRouter.post("/:id/gps", controller.addGps);
-rutaRouter.post("/:id/gps/batch", controller.addGpsBatch);
 
 export default rutaRouter;

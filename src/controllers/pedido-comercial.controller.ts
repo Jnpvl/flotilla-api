@@ -1,12 +1,12 @@
 import type { Response } from "express";
 import { RolUsuario } from "../constants/rol.enum.js";
 import type { AuthedRequest } from "../middlewares/auth.middleware.js";
-import { PedidoService } from "../services/pedido.service.js";
+import { PedidoComercialService } from "../services/pedido-comercial.service.js";
 
 type HttpError = Error & { status?: number };
 
-export class PedidoController {
-  private readonly service = new PedidoService();
+export class PedidoComercialController {
+  private readonly service = new PedidoComercialService();
 
   list = async (req: AuthedRequest, res: Response): Promise<void> => {
     try {
@@ -15,16 +15,28 @@ export class PedidoController {
       const estatus =
         typeof req.query.estatus === "string" ? req.query.estatus : "";
       const q = typeof req.query.q === "string" ? req.query.q : "";
-
-      const result = await this.service.findAll({
+      const vendedorIdRaw = Number(req.query.vendedorId);
+      const query: {
+        page: number;
+        pageSize: number;
+        estatus: never;
+        q: string;
+        vendedorId?: number;
+        excludeBorrador?: boolean;
+      } = {
         page: Number.isFinite(page) ? page : 1,
-        pageSize: Number.isFinite(pageSize) ? pageSize : 10,
+        pageSize: Number.isFinite(pageSize) ? pageSize : 20,
         estatus: estatus as never,
         q,
-      });
+        excludeBorrador: req.auth?.rol === RolUsuario.FACTURISTA,
+      };
+      if (Number.isInteger(vendedorIdRaw) && vendedorIdRaw > 0) {
+        query.vendedorId = vendedorIdRaw;
+      }
+      const result = await this.service.findAll(query);
       res.status(200).json(result);
     } catch (error) {
-      console.error("Error listando pedidos:", error);
+      console.error("Error listando pedidos comerciales:", error);
       res.status(500).json({ message: "Error interno del servidor" });
     }
   };
@@ -35,35 +47,35 @@ export class PedidoController {
       res.status(400).json({ message: "id inválido" });
       return;
     }
-
     try {
       const pedido = await this.service.findById(id);
       if (!pedido) {
-        res.status(404).json({ message: "Pedido no encontrado" });
+        res.status(404).json({ message: "Pedido comercial no encontrado" });
         return;
       }
       res.status(200).json(pedido);
     } catch (error) {
-      console.error("Error obteniendo pedido:", error);
+      console.error("Error obteniendo pedido comercial:", error);
       res.status(500).json({ message: "Error interno del servidor" });
     }
   };
 
   create = async (req: AuthedRequest, res: Response): Promise<void> => {
-    const creadoPorId = req.auth?.sub;
-    if (!creadoPorId) {
+    const fromBody = Number(req.body?.vendedorId);
+    const vendedorId =
+      Number.isInteger(fromBody) && fromBody > 0 ? fromBody : req.auth?.sub;
+    if (!vendedorId) {
       res.status(401).json({ message: "No autorizado" });
       return;
     }
-
     try {
       const pedido = await this.service.create({
-        lugarEntrega: req.body?.lugarEntrega,
-        creadoPorId,
+        ...(req.body ?? {}),
+        vendedorId,
       });
       res.status(201).json(pedido);
     } catch (error) {
-      this.handleError(res, error, "Error creando pedido");
+      this.handleError(res, error, "Error creando pedido comercial");
     }
   };
 
@@ -73,28 +85,17 @@ export class PedidoController {
       res.status(400).json({ message: "id inválido" });
       return;
     }
-
-    const body = { ...(req.body ?? {}) } as Record<string, unknown>;
-    if (
-      body.estatus !== undefined &&
-      req.auth?.rol === RolUsuario.AUXILIAR
-    ) {
-      res.status(403).json({
-        message:
-          "El auxiliar no puede cambiar el estatus del pedido desde el panel",
-      });
-      return;
-    }
-
     try {
-      const pedido = await this.service.update(id, body);
+      const pedido = await this.service.update(id, req.body ?? {}, {
+        actorRol: req.auth?.rol,
+      });
       if (!pedido) {
-        res.status(404).json({ message: "Pedido no encontrado" });
+        res.status(404).json({ message: "Pedido comercial no encontrado" });
         return;
       }
       res.status(200).json(pedido);
     } catch (error) {
-      this.handleError(res, error, "Error actualizando pedido");
+      this.handleError(res, error, "Error actualizando pedido comercial");
     }
   };
 
@@ -104,34 +105,25 @@ export class PedidoController {
       res.status(400).json({ message: "id inválido" });
       return;
     }
-
     try {
       const deleted = await this.service.remove(id);
       if (!deleted) {
-        res.status(404).json({ message: "Pedido no encontrado" });
+        res.status(404).json({ message: "Pedido comercial no encontrado" });
         return;
       }
       res.status(204).send();
     } catch (error) {
-      console.error("Error eliminando pedido:", error);
-      res.status(500).json({ message: "Error interno del servidor" });
+      this.handleError(res, error, "Error eliminando pedido comercial");
     }
   };
 
   private handleError(res: Response, error: unknown, logMessage: string): void {
-    const err = error as HttpError & { driverError?: { message?: string } };
+    const err = error as HttpError;
     if (err.status && err.status >= 400 && err.status < 500) {
       res.status(err.status).json({ message: err.message });
       return;
     }
     console.error(`${logMessage}:`, error);
-    const detail =
-      err.driverError?.message ||
-      (typeof err.message === "string" ? err.message : null);
-    res.status(500).json({
-      message: detail
-        ? `Error interno del servidor: ${detail}`
-        : "Error interno del servidor",
-    });
+    res.status(500).json({ message: "Error interno del servidor" });
   }
 }

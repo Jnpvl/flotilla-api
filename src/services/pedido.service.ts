@@ -125,6 +125,14 @@ export class PedidoService {
     }
 
     if (dto.lugarEntrega !== undefined) {
+      if (pedido.estatus !== PedidoEstatus.LISTO_PARA_ENTREGAR) {
+        throw Object.assign(
+          new Error(
+            "Solo se pueden editar pedidos en estatus listo para entregar",
+          ),
+          { status: 400 },
+        );
+      }
       if (typeof dto.lugarEntrega !== "string" || !dto.lugarEntrega.trim()) {
         throw Object.assign(new Error("lugarEntrega inválido"), { status: 400 });
       }
@@ -146,9 +154,11 @@ export class PedidoService {
   async remove(id: number): Promise<boolean> {
     const pedido = await this.repo.findOne({ where: { id } });
     if (!pedido) return false;
-    if (pedido.estatus === PedidoEstatus.ENTREGADO) {
+    if (pedido.estatus !== PedidoEstatus.LISTO_PARA_ENTREGAR) {
       throw Object.assign(
-        new Error("Un pedido entregado no se puede eliminar"),
+        new Error(
+          "Solo se pueden eliminar pedidos en estatus listo para entregar",
+        ),
         { status: 400 },
       );
     }

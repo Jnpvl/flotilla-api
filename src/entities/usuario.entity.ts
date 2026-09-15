@@ -22,6 +22,10 @@ export class Usuario {
   @Column({ type: "nvarchar", length: 20 })
   rol!: RolUsuario;
 
+  /** CIDAGENTE de Contpaq (admAgentes). Solo aplica a vendedores. */
+  @Column({ name: "agente_contpaq_id", type: "int", nullable: true })
+  agenteContpaqId!: number | null;
+
   @Column({ name: "created_at", type: "datetime2" })
   createdAt!: Date;
 
