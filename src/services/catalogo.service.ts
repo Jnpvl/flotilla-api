@@ -106,6 +106,67 @@ export class CatalogoService {
     return this.mapItems(await CatalogDataSource!.query(sql, params));
   }
 
+  /**
+   * Resuelve código Contpaq por nombre exacto (denominación comercial o razón social).
+   * Si el catálogo no está disponible o no hay match único, regresa null.
+   */
+  async resolveClienteCodigoByNombre(nombre: string): Promise<string | null> {
+    if (!CatalogDataSource?.isInitialized) return null;
+    const term = nombre.trim();
+    if (!term) return null;
+
+    try {
+      const rows = (await CatalogDataSource.query(
+        `
+        SELECT TOP 10
+          LTRIM(RTRIM(CCODIGOCLIENTE)) AS codigo,
+          LTRIM(RTRIM(CRAZONSOCIAL)) AS razonSocial,
+          LTRIM(RTRIM(ISNULL(CDENCOMERCIAL, ''))) AS denComercial
+        FROM dbo.admClientes
+        WHERE CESTATUS = 1
+          AND CTIPOCLIENTE IN (1, 3)
+          AND LTRIM(RTRIM(CCODIGOCLIENTE)) NOT LIKE '(Ninguno)%'
+          AND (
+            LOWER(LTRIM(RTRIM(CRAZONSOCIAL))) = LOWER(@0)
+            OR LOWER(LTRIM(RTRIM(CDENCOMERCIAL))) = LOWER(@0)
+          )
+        ORDER BY CRAZONSOCIAL
+        `,
+        [term],
+      )) as Array<{
+        codigo: string | null;
+        razonSocial: string | null;
+        denComercial: string | null;
+      }>;
+
+      const items = rows
+        .map((r) => ({
+          codigo: String(r.codigo ?? "").trim(),
+          razonSocial: String(r.razonSocial ?? "").trim(),
+          denComercial: String(r.denComercial ?? "").trim(),
+        }))
+        .filter((r) => r.codigo);
+
+      if (items.length === 0) return null;
+      if (items.length === 1) return items[0]!.codigo;
+
+      const byDen = items.filter(
+        (r) => r.denComercial.toLowerCase() === term.toLowerCase(),
+      );
+      if (byDen.length === 1) return byDen[0]!.codigo;
+
+      const byRaz = items.filter(
+        (r) => r.razonSocial.toLowerCase() === term.toLowerCase(),
+      );
+      if (byRaz.length === 1) return byRaz[0]!.codigo;
+
+      // Varios matches ambiguos: no adivinar
+      return null;
+    } catch {
+      return null;
+    }
+  }
+
   /** Agentes de venta Contpaq (admAgentes) — útiles para filtrar clientes. */
   async listAgentes(): Promise<CatalogAgente[]> {
     this.ensureReady();

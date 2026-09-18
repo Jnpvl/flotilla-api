@@ -20,6 +20,7 @@ import {
   dbDateToWallClock,
   wallClockToDbDate,
 } from "../utils/local-datetime.js";
+import { CatalogoService } from "./catalogo.service.js";
 
 const ESTATUS = new Set<string>(Object.values(PedidoComercialEstatus));
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -39,6 +40,31 @@ function normalizeClienteCodigo(value: unknown): string | null {
 
 export class PedidoComercialService {
   private readonly repo = AppDataSource.getRepository(PedidoComercial);
+  private readonly catalogo = new CatalogoService();
+
+  /** Usa el código enviado o lo resuelve en Contpaq por nombre exacto. */
+  private async resolveClienteCodigo(
+    clienteNombre: string,
+    provided?: unknown,
+  ): Promise<string | null> {
+    const fromClient = normalizeClienteCodigo(provided);
+    if (fromClient) return fromClient;
+    return this.catalogo.resolveClienteCodigoByNombre(clienteNombre);
+  }
+
+  /** Si el pedido no tiene código, intenta vincularlo desde Contpaq y persistirlo. */
+  private async backfillClienteCodigo(
+    pedido: PedidoComercial,
+  ): Promise<PedidoComercial> {
+    if (pedido.clienteCodigo?.trim()) return pedido;
+    const codigo = await this.catalogo.resolveClienteCodigoByNombre(
+      pedido.clienteNombre,
+    );
+    if (!codigo) return pedido;
+    pedido.clienteCodigo = codigo;
+    await this.repo.update(pedido.id, { clienteCodigo: codigo });
+    return pedido;
+  }
 
   async findAll(
     query: PedidoComercialListQuery = {},
@@ -103,8 +129,11 @@ export class PedidoComercialService {
     applyFilters(qb);
 
     const items = await qb.getMany();
+    const enriched = await Promise.all(
+      items.map((p) => this.backfillClienteCodigo(p)),
+    );
     return {
-      items: items.map((p) => this.toPublic(p)),
+      items: enriched.map((p) => this.toPublic(p)),
       total,
       page,
       pageSize,
@@ -117,7 +146,8 @@ export class PedidoComercialService {
       where: { id },
       relations: { vendedor: true },
     });
-    return pedido ? this.toPublic(pedido) : null;
+    if (!pedido) return null;
+    return this.toPublic(await this.backfillClienteCodigo(pedido));
   }
 
   async create(dto: CreatePedidoComercialDto): Promise<PedidoComercialPublic> {
@@ -152,9 +182,13 @@ export class PedidoComercialService {
         : null;
 
     const now = wallClockToDbDate(getClientLocalWallClock());
+    const clienteCodigo = await this.resolveClienteCodigo(
+      dto.clienteNombre.trim(),
+      dto.clienteCodigo,
+    );
     const pedido = this.repo.create({
       clienteNombre: dto.clienteNombre.trim(),
-      clienteCodigo: normalizeClienteCodigo(dto.clienteCodigo),
+      clienteCodigo,
       detalle,
       fechaPedido: dto.fechaPedido.trim(),
       estatus,
@@ -208,8 +242,13 @@ export class PedidoComercialService {
       pedido.clienteNombre = dto.clienteNombre.trim();
     }
 
-    if (dto.clienteCodigo !== undefined) {
-      pedido.clienteCodigo = normalizeClienteCodigo(dto.clienteCodigo);
+    if (dto.clienteCodigo !== undefined || dto.clienteNombre !== undefined) {
+      pedido.clienteCodigo = await this.resolveClienteCodigo(
+        pedido.clienteNombre,
+        dto.clienteCodigo !== undefined
+          ? dto.clienteCodigo
+          : pedido.clienteCodigo,
+      );
     }
 
     if (dto.detalle !== undefined) {
