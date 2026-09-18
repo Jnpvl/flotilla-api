@@ -2,6 +2,8 @@ import type { PedidoComercialEstatus } from "../constants/pedido-comercial-estat
 
 export interface CreatePedidoComercialDto {
   clienteNombre: string;
+  /** Código Contpaq del cliente (opcional pero recomendado). */
+  clienteCodigo?: string | null;
   detalle?: string | null;
   fechaPedido: string;
   estatus?: PedidoComercialEstatus;
@@ -10,6 +12,7 @@ export interface CreatePedidoComercialDto {
 
 export interface UpdatePedidoComercialDto {
   clienteNombre?: string;
+  clienteCodigo?: string | null;
   detalle?: string | null;
   fechaPedido?: string;
   estatus?: PedidoComercialEstatus;
@@ -38,6 +41,7 @@ export interface PedidoComercialListQuery {
 export interface PedidoComercialPublic {
   id: number;
   clienteNombre: string;
+  clienteCodigo: string | null;
   detalle: string | null;
   fechaPedido: string;
   estatus: PedidoComercialEstatus;

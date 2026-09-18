@@ -31,6 +31,12 @@ function isPrefacturaStatus(estatus: PedidoComercialEstatus): boolean {
   );
 }
 
+function normalizeClienteCodigo(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim().slice(0, 40);
+  return trimmed || null;
+}
+
 export class PedidoComercialService {
   private readonly repo = AppDataSource.getRepository(PedidoComercial);
 
@@ -78,7 +84,7 @@ export class PedidoComercialService {
       }
       if (q) {
         qb.andWhere(
-          "(LOWER(p.clienteNombre) LIKE :q OR LOWER(p.detalle) LIKE :q)",
+          "(LOWER(p.clienteNombre) LIKE :q OR LOWER(ISNULL(p.clienteCodigo, '')) LIKE :q OR LOWER(p.detalle) LIKE :q)",
           { q: `%${q.toLowerCase()}%` },
         );
       }
@@ -148,6 +154,7 @@ export class PedidoComercialService {
     const now = wallClockToDbDate(getClientLocalWallClock());
     const pedido = this.repo.create({
       clienteNombre: dto.clienteNombre.trim(),
+      clienteCodigo: normalizeClienteCodigo(dto.clienteCodigo),
       detalle,
       fechaPedido: dto.fechaPedido.trim(),
       estatus,
@@ -201,12 +208,17 @@ export class PedidoComercialService {
       pedido.clienteNombre = dto.clienteNombre.trim();
     }
 
+    if (dto.clienteCodigo !== undefined) {
+      pedido.clienteCodigo = normalizeClienteCodigo(dto.clienteCodigo);
+    }
+
     if (dto.detalle !== undefined) {
       const surtidoOnly =
         wasPrefactura &&
         (actorRol === RolUsuario.FACTURISTA ||
           (actorRol === RolUsuario.ADMIN &&
             dto.clienteNombre === undefined &&
+            dto.clienteCodigo === undefined &&
             dto.fechaPedido === undefined));
 
       if (surtidoOnly) {
@@ -296,6 +308,7 @@ export class PedidoComercialService {
       (actorRol === RolUsuario.FACTURISTA ||
         (actorRol === RolUsuario.ADMIN &&
           dto.clienteNombre === undefined &&
+          dto.clienteCodigo === undefined &&
           dto.fechaPedido === undefined))
     ) {
       if (Boolean(pedido.requiereRevision) && dto.ackRevision !== true) {
@@ -368,6 +381,7 @@ export class PedidoComercialService {
     return {
       id: pedido.id,
       clienteNombre: pedido.clienteNombre,
+      clienteCodigo: pedido.clienteCodigo?.trim() || null,
       detalle: pedido.detalle,
       fechaPedido: pedido.fechaPedido,
       estatus: pedido.estatus,

@@ -16,6 +16,10 @@ export class PedidoComercial {
   @Column({ name: "cliente_nombre", type: "nvarchar", length: 160 })
   clienteNombre!: string;
 
+  /** Código Contpaq del cliente (admClientes.CCODIGOCLIENTE). */
+  @Column({ name: "cliente_codigo", type: "nvarchar", length: 40, nullable: true })
+  clienteCodigo!: string | null;
+
   @Column({ type: "nvarchar", length: 2000, nullable: true })
   detalle!: string | null;
 
