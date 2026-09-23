@@ -65,7 +65,7 @@ export const env = {
   port: Number(process.env.PORT ?? 3001),
   /** Dev fallback only — set JWT_SECRET in production. */
   jwtSecret: process.env.JWT_SECRET ?? "flotilla-dev-jwt-secret",
-  jwtExpiresIn: process.env.JWT_EXPIRES_IN ?? "8h",
+  jwtExpiresIn: process.env.JWT_EXPIRES_IN ?? "5d",
   /**
    * Orígenes CORS separados por coma.
    * Ej: http://localhost:4200,https://flotilla-web.vercel.app,*.vercel.app
