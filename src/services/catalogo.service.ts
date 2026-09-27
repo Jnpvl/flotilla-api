@@ -28,7 +28,7 @@ export class CatalogoService {
 
   /**
    * Clientes activos Contpaq (admClientes).
-   * CTIPOCLIENTE 1 = cliente, 3 = cliente/proveedor.
+   * Solo CTIPOCLIENTE = 1 (cliente); 2 = cliente/proveedor, 3 = proveedor.
    * Opcional: filtrar por CIDAGENTEVENTA (admAgentes).
    */
   async searchClientes(
@@ -42,7 +42,7 @@ export class CatalogoService {
     const params: unknown[] = [take];
     const filters = [
       "CESTATUS = 1",
-      "CTIPOCLIENTE IN (1, 3)",
+      "CTIPOCLIENTE = 1",
       "LTRIM(RTRIM(CCODIGOCLIENTE)) NOT LIKE '(Ninguno)%'",
     ];
 
@@ -124,7 +124,7 @@ export class CatalogoService {
           LTRIM(RTRIM(ISNULL(CDENCOMERCIAL, ''))) AS denComercial
         FROM dbo.admClientes
         WHERE CESTATUS = 1
-          AND CTIPOCLIENTE IN (1, 3)
+          AND CTIPOCLIENTE = 1
           AND LTRIM(RTRIM(CCODIGOCLIENTE)) NOT LIKE '(Ninguno)%'
           AND (
             LOWER(LTRIM(RTRIM(CRAZONSOCIAL))) = LOWER(@0)
