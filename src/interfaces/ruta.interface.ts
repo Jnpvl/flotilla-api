@@ -1,5 +1,6 @@
 import type { PedidoEstatus } from "../constants/pedido-estatus.enum.js";
 import type { RutaEstatus } from "../constants/ruta-estatus.enum.js";
+import type { FacturaPartida } from "./factura.interface.js";
 
 export interface IniciarRutaDto {
   choferId: number;
@@ -28,6 +29,18 @@ export interface RutaPedidoPublic {
   lugarEntrega: string;
   estatus: PedidoEstatus;
   ordenEntrega: number;
+  facturaFolio: number | null;
+  facturaSerie: string | null;
+  facturaFecha: string | null;
+  clienteCodigo: string | null;
+  clienteNombre: string | null;
+  clienteRfc: string | null;
+  facturaTotal: number | null;
+  partidas: FacturaPartida[];
+  recibidoPor: string | null;
+  firmadoAt: string | null;
+  /** PNG en base64 de quien recibió. */
+  firma: string | null;
 }
 
 export interface RutaGpsPoint {

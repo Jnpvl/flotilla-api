@@ -10,6 +10,7 @@ import { Pedido } from "../entities/pedido.entity.js";
 import { Ruta } from "../entities/ruta.entity.js";
 import { RutaPedido } from "../entities/ruta-pedido.entity.js";
 import { Usuario } from "../entities/usuario.entity.js";
+import { parsePartidas } from "./pedido.service.js";
 import type {
   CreateGpsSenalDto,
   DashboardStats,
@@ -186,13 +187,17 @@ export class RutaService {
       });
     }
 
-    const chofer = await this.usuarioRepo.findOne({
-      where: { id: dto.choferId, rol: RolUsuario.CHOFER },
+    const operador = await this.usuarioRepo.findOne({
+      where: { id: dto.choferId },
     });
-    if (!chofer) {
-      throw Object.assign(new Error("El chofer no existe o no tiene rol chofer"), {
-        status: 400,
-      });
+    if (
+      !operador ||
+      (operador.rol !== RolUsuario.CHOFER && operador.rol !== RolUsuario.ADMIN)
+    ) {
+      throw Object.assign(
+        new Error("Solo un chofer o un administrador puede operar la ruta"),
+        { status: 400 },
+      );
     }
 
     const pedidos = await this.pedidoRepo.findBy({
@@ -222,7 +227,7 @@ export class RutaService {
     const now = wallClockToDbDate(getClientLocalWallClock());
 
     const ruta = this.rutaRepo.create({
-      choferId: chofer.id,
+      choferId: operador.id,
       almacenId: almacen.id,
       estatus: RutaEstatus.EN_RUTA,
       kmRecorridos: "0",
@@ -488,13 +493,30 @@ export class RutaService {
   private toPublic(ruta: Ruta, includeGps = false): RutaPublic {
     const pedidos = [...(ruta.rutaPedidos ?? [])]
       .sort((a, b) => a.ordenEntrega - b.ordenEntrega)
-      .map((rp) => ({
-        id: rp.id,
-        pedidoId: rp.pedidoId,
-        lugarEntrega: rp.pedido?.lugarEntrega ?? "—",
-        estatus: rp.pedido?.estatus ?? PedidoEstatus.LISTO_PARA_ENTREGAR,
-        ordenEntrega: rp.ordenEntrega,
-      }));
+      .map((rp) => {
+        const pedido = rp.pedido;
+        return {
+          id: rp.id,
+          pedidoId: rp.pedidoId,
+          lugarEntrega: pedido?.lugarEntrega ?? "—",
+          estatus: pedido?.estatus ?? PedidoEstatus.LISTO_PARA_ENTREGAR,
+          ordenEntrega: rp.ordenEntrega,
+          facturaFolio: pedido?.facturaFolio ?? null,
+          facturaSerie: pedido?.facturaSerie ?? null,
+          facturaFecha: pedido?.facturaFecha ?? null,
+          clienteCodigo: pedido?.clienteCodigo ?? null,
+          clienteNombre: pedido?.clienteNombre ?? null,
+          clienteRfc: pedido?.clienteRfc ?? null,
+          facturaTotal:
+            pedido?.facturaTotal == null ? null : Number(pedido.facturaTotal),
+          partidas: parsePartidas(pedido?.partidas),
+          recibidoPor: pedido?.recibidoPor ?? null,
+          firmadoAt: pedido?.firmadoAt
+            ? dbDateToWallClock(pedido.firmadoAt)
+            : null,
+          firma: pedido?.firma ?? null,
+        };
+      });
 
     const base: RutaPublic = {
       id: ruta.id,

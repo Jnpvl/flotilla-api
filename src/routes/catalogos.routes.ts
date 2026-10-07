@@ -9,6 +9,7 @@ catalogoRouter.use(requireAuth);
 
 catalogoRouter.get("/clientes", controller.searchClientes);
 catalogoRouter.get("/productos", controller.searchProductos);
+catalogoRouter.get("/facturas", controller.lookupFactura);
 catalogoRouter.get("/agentes", controller.listAgentes);
 
 export default catalogoRouter;

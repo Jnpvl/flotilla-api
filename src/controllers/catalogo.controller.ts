@@ -70,6 +70,31 @@ export class CatalogoController {
     }
   };
 
+  lookupFactura = async (req: AuthedRequest, res: Response): Promise<void> => {
+    const folio = Number(req.query.folio);
+    if (!Number.isInteger(folio) || folio <= 0) {
+      res.status(400).json({ message: "Número de factura inválido" });
+      return;
+    }
+
+    try {
+      const items = await this.service.findFacturasByFolio(folio);
+      if (items.length === 0) {
+        res.status(404).json({
+          message: `No hay una factura timbrada con el folio ${folio}`,
+        });
+        return;
+      }
+      res.status(200).json({ items });
+    } catch (error) {
+      const err = error as HttpError;
+      console.error("Error buscando factura:", error);
+      res.status(err.status ?? 500).json({
+        message: err.status === 503 ? err.message : "Error interno del servidor",
+      });
+    }
+  };
+
   listAgentes = async (_req: AuthedRequest, res: Response): Promise<void> => {
     try {
       const items = await this.service.listAgentes();

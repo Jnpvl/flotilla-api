@@ -57,8 +57,10 @@ export class PedidoController {
     }
 
     try {
+      const idDocumento = Number(req.body?.idDocumento);
       const pedido = await this.service.create({
         lugarEntrega: req.body?.lugarEntrega,
+        idDocumento: Number.isInteger(idDocumento) ? idDocumento : undefined,
         creadoPorId,
       });
       res.status(201).json(pedido);
