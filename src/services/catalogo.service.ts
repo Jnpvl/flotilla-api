@@ -57,7 +57,7 @@ export class CatalogoService {
 
     if (term) {
       filters.push(
-        `(LTRIM(RTRIM(CCODIGOCLIENTE)) LIKE @${params.length} OR LTRIM(RTRIM(CRAZONSOCIAL)) LIKE @${params.length} OR LTRIM(RTRIM(CDENCOMERCIAL)) LIKE @${params.length})`,
+        `(LTRIM(RTRIM(CCODIGOCLIENTE)) LIKE @${params.length} OR LTRIM(RTRIM(CRAZONSOCIAL)) LIKE @${params.length})`,
       );
       params.push(`%${term}%`);
     }
@@ -65,13 +65,7 @@ export class CatalogoService {
     const sql = `
       SELECT TOP (@0)
         LTRIM(RTRIM(CCODIGOCLIENTE)) AS codigo,
-        LTRIM(RTRIM(
-          CASE
-            WHEN NULLIF(LTRIM(RTRIM(CDENCOMERCIAL)), '') IS NOT NULL
-              THEN CDENCOMERCIAL
-            ELSE CRAZONSOCIAL
-          END
-        )) AS nombre
+        LTRIM(RTRIM(CRAZONSOCIAL)) AS nombre
       FROM dbo.admClientes
       WHERE ${filters.join(" AND ")}
       ORDER BY CRAZONSOCIAL
@@ -111,7 +105,7 @@ export class CatalogoService {
   }
 
   /**
-   * Resuelve código Contpaq por nombre exacto (denominación comercial o razón social).
+   * Resuelve código Contpaq por razón social exacta.
    * Si el catálogo no está disponible o no hay match único, regresa null.
    */
   async resolveClienteCodigoByNombre(nombre: string): Promise<string | null> {
@@ -124,45 +118,29 @@ export class CatalogoService {
         `
         SELECT TOP 10
           LTRIM(RTRIM(CCODIGOCLIENTE)) AS codigo,
-          LTRIM(RTRIM(CRAZONSOCIAL)) AS razonSocial,
-          LTRIM(RTRIM(ISNULL(CDENCOMERCIAL, ''))) AS denComercial
+          LTRIM(RTRIM(CRAZONSOCIAL)) AS razonSocial
         FROM dbo.admClientes
         WHERE CESTATUS = 1
           AND CTIPOCLIENTE = 1
           AND LTRIM(RTRIM(CCODIGOCLIENTE)) NOT LIKE '(Ninguno)%'
-          AND (
-            LOWER(LTRIM(RTRIM(CRAZONSOCIAL))) = LOWER(@0)
-            OR LOWER(LTRIM(RTRIM(CDENCOMERCIAL))) = LOWER(@0)
-          )
+          AND LOWER(LTRIM(RTRIM(CRAZONSOCIAL))) = LOWER(@0)
         ORDER BY CRAZONSOCIAL
         `,
         [term],
       )) as Array<{
         codigo: string | null;
         razonSocial: string | null;
-        denComercial: string | null;
       }>;
 
       const items = rows
         .map((r) => ({
           codigo: String(r.codigo ?? "").trim(),
           razonSocial: String(r.razonSocial ?? "").trim(),
-          denComercial: String(r.denComercial ?? "").trim(),
         }))
         .filter((r) => r.codigo);
 
       if (items.length === 0) return null;
       if (items.length === 1) return items[0]!.codigo;
-
-      const byDen = items.filter(
-        (r) => r.denComercial.toLowerCase() === term.toLowerCase(),
-      );
-      if (byDen.length === 1) return byDen[0]!.codigo;
-
-      const byRaz = items.filter(
-        (r) => r.razonSocial.toLowerCase() === term.toLowerCase(),
-      );
-      if (byRaz.length === 1) return byRaz[0]!.codigo;
 
       // Varios matches ambiguos: no adivinar
       return null;
