@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { requireAuth } from "../middlewares/auth.middleware.js";
+import asistenciaRouter from "./asistencias.routes.js";
 import authRouter from "./auth.routes.js";
 import catalogoRouter from "./catalogos.routes.js";
 import pedidoRouter from "./pedidos.routes.js";
@@ -16,6 +17,7 @@ v1Router.use("/catalogos", catalogoRouter);
 v1Router.use("/pedidos", pedidoRouter);
 v1Router.use("/pedidos-comerciales", pedidoComercialRouter);
 v1Router.use("/visitas", visitaRouter);
+v1Router.use("/asistencias", asistenciaRouter);
 v1Router.use("/rutas", rutaRouter);
 
 export default v1Router;

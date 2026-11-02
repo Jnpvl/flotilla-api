@@ -6,6 +6,9 @@ import { Visita } from "./visita.entity.js";
 import { Ruta } from "./ruta.entity.js";
 import { RutaPedido } from "./ruta-pedido.entity.js";
 import { GpsSenal } from "./gps-senal.entity.js";
+import { Asistencia } from "./asistencia.entity.js";
+import { AsistenciaConfig } from "./asistencia-config.entity.js";
+import { AsistenciaFestivo } from "./asistencia-festivo.entity.js";
 
 export {
   Usuario,
@@ -16,6 +19,9 @@ export {
   Ruta,
   RutaPedido,
   GpsSenal,
+  Asistencia,
+  AsistenciaConfig,
+  AsistenciaFestivo,
 };
 
 export const ENTITIES = [
@@ -27,4 +33,7 @@ export const ENTITIES = [
   Ruta,
   RutaPedido,
   GpsSenal,
+  Asistencia,
+  AsistenciaConfig,
+  AsistenciaFestivo,
 ];
